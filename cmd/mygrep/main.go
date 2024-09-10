@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"unicode/utf8"
+	"unicode"
 )
 
 // Ensures gofmt doesn't remove the "bytes" import above (feel free to remove this!)
 var _ = bytes.ContainsAny
+var matches []byte
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 func main() {
@@ -26,31 +27,53 @@ func main() {
 		os.Exit(2)
 	}
 
-	ok, err := matchLine(line, pattern)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(2)
-	}
+	ok := matchLine(line, pattern)
 
 	if !ok {
+		fmt.Println("match not found")
 		os.Exit(1)
 	}
-
-	// default exit code is 0 which means success
+	fmt.Println("match found")
+	fmt.Println("matches:", string(matches))
 }
 
-func matchLine(line []byte, pattern string) (bool, error) {
-	if utf8.RuneCountInString(pattern) != 1 {
-		return false, fmt.Errorf("unsupported pattern: %q", pattern)
+func matchLine(line []byte, pattern string) bool {
+
+	for len(line) > 0 {
+		if matchHere(line, pattern) {
+			return true
+		}
+		line = line[1:]
 	}
 
-	var ok bool
+	return false
+}
 
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Println("Logs from your program will appear here!")
+func matchHere(line []byte, pattern string) bool {
 
-	// Uncomment this to pass the first stage
-	ok = bytes.ContainsAny(line, pattern)
+	fmt.Println("matching", string(line), "vs", pattern)
+	if len(pattern) == 0 {
+		fmt.Println("empty pattern match")
+		return true
+	}
 
-	return ok, nil
+	if len(pattern) > 1 && pattern[0] == '\\' {
+		switch pattern[1] {
+		case 'd':
+			if len(line) > 0 && unicode.IsDigit(rune(line[0])) {
+				fmt.Println("digit match = ", string(line[0]))
+				matches = append(matches, line[0])
+				return true
+			}
+		}
+		return false
+	}
+
+	if len(line) > 0 && (pattern[0] == '.' || pattern[0] == line[0]) {
+		fmt.Println("direct match = ", string(line[0]))
+		matches = append(matches, line[0])
+		return matchHere(line[1:], pattern[1:])
+	}
+	fmt.Println("no match")
+	return false
 }

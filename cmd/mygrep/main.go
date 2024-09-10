@@ -33,8 +33,8 @@ func main() {
 		fmt.Println("match not found")
 		os.Exit(1)
 	}
-	fmt.Println("match found")
-	fmt.Println("matches:", string(matches))
+	fmt.Println("match found: ", len(matches), "match(es)")
+	fmt.Println("match(es):", string(matches))
 }
 
 func matchLine(line []byte, pattern string) bool {
@@ -61,14 +61,22 @@ func matchHere(line []byte, pattern string) bool {
 		switch pattern[1] {
 		case 'd':
 			if len(line) > 0 && unicode.IsDigit(rune(line[0])) {
-				fmt.Println("digit match = ", string(line[0]))
+				fmt.Println("digit match :", string(line[0]))
 				matches = append(matches, line[0])
 				return true
 			}
+		case 'w':
+			if len(line) > 0 && (unicode.IsLetter(rune(line[0])) || unicode.IsDigit(rune(line[0])) || line[0] == '_') {
+				fmt.Println("word match :", string(line[0]))
+				matches = append(matches, line[0])
+				return true
+			}
+		default:
+			goto jmp
 		}
 		return false
 	}
-
+jmp:
 	if len(line) > 0 && (pattern[0] == '.' || pattern[0] == line[0]) {
 		fmt.Println("direct match = ", string(line[0]))
 		matches = append(matches, line[0])

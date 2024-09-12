@@ -40,6 +40,13 @@ func main() {
 
 func matchLine(line []byte, pattern string) bool {
 
+	if len(pattern) > 1 && pattern[0] == '^' {
+		if matched, consumed := matchHere(line, pattern[1:]); matched && consumed == len(pattern[1:]) {
+		} else {
+			return false
+		}
+	}
+
 	for len(line) > 0 {
 		if matched, consumed := matchHere(line, pattern); matched && consumed == len(pattern) {
 			fmt.Println("full match was found")
@@ -113,7 +120,7 @@ func contains(line []byte, str string) (bool, []byte) {
 	for _, b := range line {
 		for _, r := range str {
 			if b == byte(r) {
-				foo = append(foo, byte(r))
+				foo = append(foo, b)
 				match = true
 			}
 		}

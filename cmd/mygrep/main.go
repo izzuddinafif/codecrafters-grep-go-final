@@ -61,8 +61,16 @@ func matchHere(line []byte, pattern string) (bool, int) {
 
 	if len(pattern) > 1 && pattern[0] == '[' {
 		end := strings.LastIndex(pattern, "]")
-		if ok, b := contains(line, pattern[1:end]); ok {
-			matches = append(matches, b)
+		if pattern[1] == '^' {
+			if ok, b := doesntContain(line, pattern[2:end]); ok {
+				matches = append(matches, b...)
+				fmt.Println("negative character group match found:", string(b))
+				subMatched, subConsumed := matchHere(line[1:], pattern[end+1:])
+				return subMatched, subConsumed + end + 1
+			}
+		} else if ok, b := contains(line, pattern[1:end]); ok {
+			matches = append(matches, b...)
+			fmt.Println("positive character group match found:", string(b))
 			subMatched, subConsumed := matchHere(line[1:], pattern[end+1:])
 			return subMatched, subConsumed + end + 1
 		}
@@ -98,13 +106,36 @@ func matchHere(line []byte, pattern string) (bool, int) {
 	return false, 0
 }
 
-func contains(line []byte, str string) (bool, byte) {
+func contains(line []byte, str string) (bool, []byte) {
+	var foo []byte
+	var match bool
+	fmt.Println("searching positive pattern", str, "in", string(line))
 	for _, b := range line {
 		for _, r := range str {
 			if b == byte(r) {
-				return true, byte(r)
+				foo = append(foo, byte(r))
+				match = true
 			}
 		}
 	}
-	return false, 0
+	return match, foo
+}
+
+func doesntContain(line []byte, str string) (bool, []byte) {
+	var foo []byte
+	var match bool
+	fmt.Println("searching negative pattern", str, "in", string(line))
+	for _, b := range line {
+		for _, r := range str {
+			if b == byte(r) {
+				match = true
+			}
+		}
+		if !match {
+			foo = append(foo, b)
+		}
+		match = false
+	}
+	fmt.Println(string(foo))
+	return len(foo) > 0, foo
 }

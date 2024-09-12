@@ -54,6 +54,7 @@ func matchLine(line []byte, pattern string) bool {
 		}
 	} else {
 		for len(line) > 0 {
+			matches = nil
 			if matched, consumed := matchHere(line, pattern); matched && consumed == len(pattern) {
 				fmt.Println("full match was found")
 				return true
@@ -115,12 +116,22 @@ func matchHere(line []byte, pattern string) (bool, int) {
 
 			fmt.Println("direct match:", string(line[0]))
 			matches = append(matches, line[0])
-			if len(line) > 1 && line[1] == pattern[0] {
-				subMatched, subConsumed := matchHere(line[1:], pattern)
+			if len(line) > 1 && line[1] == pattern[0] { // enter this search block only if the next line == char before +, else quit searching by incrementing pattern by 2, skipping the char and +
+				subMatched, subConsumed := matchHere(line[1:], pattern) // search for all pattern[0] instances inside of line
 				return subMatched, subConsumed
 			}
 
 			subMatched, subConsumed := matchHere(line[1:], pattern[2:])
+			return subMatched, subConsumed + 2
+		}
+	} else if len(line) > 0 && len(pattern) > 1 && pattern[1] == '?' {
+		if line[0] == pattern[0] {
+			fmt.Println("direct match:", string(line[0]))
+			matches = append(matches, line[0])
+			subMatched, subConsumed := matchHere(line[1:], pattern[2:])
+			return subMatched, subConsumed + 2
+		} else {
+			subMatched, subConsumed := matchHere(line, pattern[2:])
 			return subMatched, subConsumed + 2
 		}
 	}
@@ -136,7 +147,7 @@ func matchHere(line []byte, pattern string) (bool, int) {
 
 func contains(line []byte, str string) (bool, []byte) {
 	var foo []byte
-	fmt.Println("searching positive pattern", str, "in", string(line))
+	fmt.Println("searching for positive pattern", str, "in", string(line))
 	for _, b := range line {
 		for _, r := range str {
 			if b == byte(r) {
@@ -150,7 +161,7 @@ func contains(line []byte, str string) (bool, []byte) {
 func doesntContain(line []byte, str string) (bool, []byte) {
 	var foo []byte
 	var match bool
-	fmt.Println("searching negative pattern", str, "in", string(line))
+	fmt.Println("searching for negative pattern", str, "in", string(line))
 	for _, b := range line {
 		for _, r := range str {
 			if b == byte(r) {

@@ -52,6 +52,11 @@ func matchLine(line []byte, pattern string) bool {
 		} else {
 			return false
 		}
+	} else if strings.Index(pattern, "(") > 0 {
+		if matched, _ := matchHere(line, pattern); matched {
+			fmt.Println("full match was found")
+			return true
+		}
 	} else {
 		for len(line) > 0 {
 			matches = nil
@@ -74,7 +79,18 @@ func matchHere(line []byte, pattern string) (bool, int) {
 		return true, 0
 	}
 
-	if len(pattern) > 1 && pattern[0] == '[' {
+	if len(pattern) > 1 && pattern[0] == '(' {
+		pat := pattern[1:strings.LastIndex(pattern, ")")]
+		if strings.Index(pat, "|") > 0 {
+			for _, s := range strings.Split(pat, "|") {
+				if subMatched, subConsumed := matchHere(line, s); subMatched {
+					return subMatched, subConsumed + len(pat) + 2
+				}
+			}
+		}
+	}
+
+	if len(pattern) > 2 && pattern[0] == '[' {
 		end := strings.LastIndex(pattern, "]")
 		if pattern[1] == '^' {
 			if ok, b := doesntContain(line, pattern[2:end]); ok {
@@ -111,7 +127,7 @@ func matchHere(line []byte, pattern string) (bool, int) {
 		}
 		return false, 0
 	}
-	if len(line) > 1 && len(pattern) > 1 && pattern[1] == '+' {
+	if len(line) > 1 && len(pattern) > 1 && pattern[1] == '+' { // match one or more times
 		if line[0] == pattern[0] {
 
 			fmt.Println("direct match:", string(line[0]))
@@ -124,13 +140,13 @@ func matchHere(line []byte, pattern string) (bool, int) {
 			subMatched, subConsumed := matchHere(line[1:], pattern[2:])
 			return subMatched, subConsumed + 2
 		}
-	} else if len(line) > 0 && len(pattern) > 1 && pattern[1] == '?' {
-		if line[0] == pattern[0] {
+	} else if len(line) > 0 && len(pattern) > 1 && pattern[1] == '?' { // match zero or one time
+		if line[0] == pattern[0] { // if there's one match instance, skip the matching line, and pattern char and ?
 			fmt.Println("direct match:", string(line[0]))
 			matches = append(matches, line[0])
 			subMatched, subConsumed := matchHere(line[1:], pattern[2:])
 			return subMatched, subConsumed + 2
-		} else {
+		} else { // else dont skip the line, just skip the pattern
 			subMatched, subConsumed := matchHere(line, pattern[2:])
 			return subMatched, subConsumed + 2
 		}

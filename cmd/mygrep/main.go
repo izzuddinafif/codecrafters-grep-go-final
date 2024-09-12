@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -9,8 +8,6 @@ import (
 	"unicode"
 )
 
-// Ensures gofmt doesn't remove the "bytes" import above (feel free to remove this!)
-var _ = bytes.ContainsAny
 var matches []byte
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
@@ -42,17 +39,19 @@ func matchLine(line []byte, pattern string) bool {
 
 	if len(pattern) > 1 && pattern[0] == '^' {
 		if matched, consumed := matchHere(line, pattern[1:]); matched && consumed == len(pattern[1:]) {
+			fmt.Println("full match was found")
+			return true
 		} else {
 			return false
 		}
-	}
-
-	for len(line) > 0 {
-		if matched, consumed := matchHere(line, pattern); matched && consumed == len(pattern) {
-			fmt.Println("full match was found")
-			return true
+	} else {
+		for len(line) > 0 {
+			if matched, consumed := matchHere(line, pattern); matched && consumed == len(pattern) {
+				fmt.Println("full match was found")
+				return true
+			}
+			line = line[1:]
 		}
-		line = line[1:]
 	}
 
 	return false

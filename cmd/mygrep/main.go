@@ -44,6 +44,14 @@ func matchLine(line []byte, pattern string) bool {
 		} else {
 			return false
 		}
+	} else if len(pattern) > 1 && pattern[len(pattern)-1] == '$' {
+		pat := pattern[:len(pattern)-1]
+		if matched, consumed := matchHere(line[len(line)-len(pat):], pat); matched && consumed == len(pat) {
+			fmt.Println("full match was found")
+			return true
+		} else {
+			return false
+		}
 	} else {
 		for len(line) > 0 {
 			if matched, consumed := matchHere(line, pattern); matched && consumed == len(pattern) {

@@ -95,14 +95,14 @@ func matchHere(line []byte, pattern string) (bool, int) {
 		switch pattern[1] {
 		case 'd':
 			if len(line) > 0 && unicode.IsDigit(rune(line[0])) {
-				fmt.Println("digit match :", string(line[0]))
+				fmt.Println("digit match:", string(line[0]))
 				matches = append(matches, line[0])
 				subMatched, subConsumed := matchHere(line[1:], pattern[2:])
 				return subMatched, subConsumed + 2
 			}
 		case 'w':
 			if len(line) > 0 && (unicode.IsLetter(rune(line[0])) || unicode.IsDigit(rune(line[0])) || line[0] == '_') {
-				fmt.Println("word match :", string(line[0]))
+				fmt.Println("word match:", string(line[0]))
 				matches = append(matches, line[0])
 				subMatched, subConsumed := matchHere(line[1:], pattern[2:])
 				return subMatched, subConsumed + 2
@@ -110,8 +110,22 @@ func matchHere(line []byte, pattern string) (bool, int) {
 		}
 		return false, 0
 	}
+	if len(line) > 1 && len(pattern) > 1 && pattern[1] == '+' {
+		if line[0] == pattern[0] {
+
+			fmt.Println("direct match:", string(line[0]))
+			matches = append(matches, line[0])
+			if len(line) > 1 && line[1] == pattern[0] {
+				subMatched, subConsumed := matchHere(line[1:], pattern)
+				return subMatched, subConsumed
+			}
+
+			subMatched, subConsumed := matchHere(line[1:], pattern[2:])
+			return subMatched, subConsumed + 2
+		}
+	}
 	if len(line) > 0 && (pattern[0] == '.' || pattern[0] == line[0]) {
-		fmt.Println("direct match = ", string(line[0]))
+		fmt.Println("direct match:", string(line[0]))
 		matches = append(matches, line[0])
 		subMatched, subConsumed := matchHere(line[1:], pattern[1:])
 		return subMatched, subConsumed + 1
@@ -122,17 +136,15 @@ func matchHere(line []byte, pattern string) (bool, int) {
 
 func contains(line []byte, str string) (bool, []byte) {
 	var foo []byte
-	var match bool
 	fmt.Println("searching positive pattern", str, "in", string(line))
 	for _, b := range line {
 		for _, r := range str {
 			if b == byte(r) {
 				foo = append(foo, b)
-				match = true
 			}
 		}
 	}
-	return match, foo
+	return len(foo) > 0, foo
 }
 
 func doesntContain(line []byte, str string) (bool, []byte) {

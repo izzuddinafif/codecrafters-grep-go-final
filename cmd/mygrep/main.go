@@ -61,9 +61,12 @@ func matchHere(line []byte, pattern string) (bool, int) {
 
 	if len(pattern) > 1 && pattern[0] == '[' {
 		end := strings.LastIndex(pattern, "]")
-
-		subMatched, subConsumed := matchHere(line[1:], pattern[end+1:])
-		return subMatched, subConsumed + end + 1
+		if ok, b := contains(line, pattern[1:end]); ok {
+			matches = append(matches, b)
+			subMatched, subConsumed := matchHere(line[1:], pattern[end+1:])
+			return subMatched, subConsumed + end + 1
+		}
+		return false, 0
 	}
 
 	if len(pattern) > 1 && pattern[0] == '\\' {
@@ -92,5 +95,16 @@ func matchHere(line []byte, pattern string) (bool, int) {
 		return subMatched, subConsumed + 1
 	}
 	fmt.Println("no match")
+	return false, 0
+}
+
+func contains(line []byte, str string) (bool, byte) {
+	for _, b := range line {
+		for _, r := range str {
+			if b == byte(r) {
+				return true, byte(r)
+			}
+		}
+	}
 	return false, 0
 }

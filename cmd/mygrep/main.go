@@ -153,6 +153,8 @@ func matchHere(line []byte, pattern string) (bool, int) {
 			// 	fmt.Println("consumed:", subConsumed)
 			// 	return subMatched, subConsumed + 2
 			// }
+			fmt.Println("it's digit number", i)
+			fmt.Println("matching with", ref)
 			if subMatched, subConsumed := matchHere(line, fmt.Sprintf("(%s)", ref)); subMatched {
 				remainingPattern := pattern[2:]
 				subConsumed -= 2

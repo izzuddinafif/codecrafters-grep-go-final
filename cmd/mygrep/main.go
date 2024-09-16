@@ -132,7 +132,7 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 					fmt.Println("appending to matchesMap", subLineConsumed)
 					newKey := maxKey + 1
 					matchesMap[newKey] = line[:subLineConsumed]
-					remainingPattern := pattern[strings.LastIndex(pattern, ")")+1:]
+					remainingPattern := pattern[strings.Index(pattern, ")")+1:]
 					subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subPatternConsumed:], remainingPattern) // match pattern after ()
 					patternConsumedTotal := len(pattern) - len(remainingPattern)                                                             // add len of | and ()
 
@@ -143,8 +143,7 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 			return false, 0, 0
 		}
 		if subMatched, subPatternConsumed, subLineConsumed := matchHere(line, pat); subMatched {
-			remainingPattern := pattern[strings.LastIndex(pattern, ")")+1:]
-
+			remainingPattern := pattern[strings.Index(pattern, ")")+1:]
 			maxKey := 0
 			for k := range matchesMap {
 				if k > maxKey {
@@ -202,9 +201,9 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 		seq := pattern[1]
 		if len(pattern) > 2 && isQuantifier(pattern[2]) {
 			i := quantifier(line, pattern, rune(pattern[2]))
+			fmt.Println(i, "perulangan")
 			subMatched, subPatternConsumed, subLineConsumed := matchHere(line[i:], pattern[3:])
-
-			fmt.Println("pat cons in \\.q:", 3+subPatternConsumed)
+			fmt.Println("pat cons in \\.q and lin cons", 3+subPatternConsumed, subLineConsumed+i)
 			return subMatched, subPatternConsumed + 3, subLineConsumed + i
 		}
 		if special(line, seq) {

@@ -237,6 +237,7 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 	}
 
 	if len(line) > 0 && len(pattern) > 1 && isQuantifier(pattern[1]) { // handle quantifiers
+		fmt.Println("heeyy")
 		i := quantifier(line, pattern, rune(pattern[1]))
 		if pattern[1] == '+' && i == 0 {
 			return false, 0, 0

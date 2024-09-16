@@ -116,7 +116,7 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 	}
 
 	if len(pattern) > 1 && pattern[0] == '(' {
-		pat := pattern[1:strings.LastIndex(pattern, ")")]
+		pat := pattern[1:strings.Index(pattern, ")")]
 		fmt.Println(pat)
 		if strings.Contains(pat, "|") {
 			alternatives := strings.Split(pat, "|")

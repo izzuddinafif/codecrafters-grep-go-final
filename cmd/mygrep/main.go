@@ -18,7 +18,8 @@ var matchesSlice = [][]byte{
 	[]byte(""),
 }
 var captureIndex = 1
-var cap = 0
+var capt = 0
+var del string
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 func main() {
@@ -39,7 +40,7 @@ func main() {
 
 	if !ok {
 		fmt.Println("match not found")
-		fmt.Println(cap)
+		fmt.Println(capt)
 		os.Exit(1)
 	}
 	fmt.Println("match found:", len(matches), "match(es)")
@@ -50,7 +51,13 @@ func main() {
 	for i, v := range matchesSlice {
 		fmt.Println("matches slice:", i, string(v))
 	}
-	fmt.Println(cap)
+	for i, v := range matchesSlice {
+		if i > 10 {
+			break
+		}
+		fmt.Println("matches slice:", i, string(v))
+	}
+	fmt.Println(capt)
 }
 
 func matchLine(line []byte, pattern string) bool {
@@ -126,31 +133,24 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 	}
 
 	if len(pattern) > 1 && pattern[0] == '(' {
-		defer func() {
-			cap--
-		}()
-		cap++
+		capt++
+		cap := capt
 		fmt.Println("cap", cap)
 		matchesSlice = append(matchesSlice, nil)
 		endIdx := findClosingParen(pattern)
 		pat := pattern[1:endIdx] // Get the pattern inside the parentheses
+		if len(pattern) > endIdx+2 {
+			del = string(pattern[endIdx+1])
+		} else {
+			del = ""
+		}
+		fmt.Println("delimiter:", del)
 		fmt.Println(pat)
-		if strings.Contains(pat, "|") {
+		if strings.Contains(pat, "|") && !strings.Contains(pat, "(") {
 			alternatives := strings.Split(pat, "|")
 			for _, alt := range alternatives {
 				fmt.Println(alt)
 				if subMatched, _, subLineConsumed := matchHere(line, alt); subMatched {
-					// maxKey := 0
-					// for k := range matchesMap {
-					// 	if k > maxKey {
-					// 		maxKey = k
-					// 	}
-					// }
-					// fmt.Println("appending to matchesMap", subLineConsumed)
-					// newKey := maxKey + 1
-					// matchesMap[newKey] = line[:subLineConsumed]
-					// remainingPattern := pattern[strings.Index(pattern, ")")+1:]
-					// subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subPatternConsumed:], remainingPattern) // match pattern after ()
 					remainingPattern := pattern[endIdx+1:]
 					matchesSlice[cap] = line[:subLineConsumed]
 					matchesMap[captureIndex] = line[:subLineConsumed]
@@ -225,12 +225,15 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 		}
 		if unicode.IsDigit(rune(seq)) {
 			i, _ := strconv.Atoi(string(seq))
-			if i >= len(matchesSlice) {
-				return false, 0, 0
-			}
 			ref := matchesSlice[i]
 			// TODO: add implementation where we can use capture group wanted
 			if ref == nil {
+				for i, v := range matchesSlice {
+					if i > 10 {
+						break
+					}
+					fmt.Println("matches slice:", i, string(v))
+				}
 				fmt.Println("index", i, "does not contain anything")
 				return false, 0, 0
 			}
@@ -320,22 +323,40 @@ func quantifier(line []byte, pattern string, q rune) int {
 	case '+':
 		if pattern[0] == '[' {
 			i := 0
-			set := pattern[1:strings.LastIndex(pattern, "]")]
+			end := strings.LastIndex(pattern, "]")
+			set := pattern[1:end]
 			fmt.Println(set, "is set")
+			var de int
+			if del == "" {
+				de = len(pattern) + 1
+			} else {
+				de = strings.Index(string(line), del)
+			}
 			if pattern[1] == '^' {
-				fmt.Println("here")
-				if ok, b := doesntContain(line[i:], set[1:]); ok {
-					matches = append(matches, b...)
-					i = len(b)
-					fmt.Println(i, "i", string(b))
+				slice := line
+				if de != -1 {
+					slice = line[i:de]
 				}
+				ok, b := doesntContain(slice, set)
+				if !ok {
+					return 0
+				}
+				matches = append(matches, b...)
+				i = len(b)
+				fmt.Println(i, "i", string(b))
 			} else {
 				// CAUTION: this doesn't include all matches as a group capture (not capturing them and adding them to matchesMap), just returning number of matches.
-				if ok, b := contains(line[i:], set); ok {
-					matches = append(matches, b...)
-					i = len(b)
-					fmt.Println(i, "i", string(b))
+				slice := line
+				if de != -1 {
+					slice = line[i:de]
 				}
+				ok, b := contains(slice, set)
+				if !ok {
+					return 0
+				}
+				matches = append(matches, b...)
+				i = len(b)
+				fmt.Println(i, "i", string(b))
 			}
 			return i
 		}

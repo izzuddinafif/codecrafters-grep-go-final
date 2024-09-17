@@ -109,9 +109,6 @@ func matchLine(line []byte, pattern string) bool {
 				for k, v := range matchesMap {
 					fmt.Println("key:", k, "value:", string(v))
 				}
-				for i, v := range matchesSlice {
-					fmt.Println("matches slice:", i, string(v))
-				}
 			}
 			line = line[1:]
 		}

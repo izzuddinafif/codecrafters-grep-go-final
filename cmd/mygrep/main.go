@@ -14,6 +14,11 @@ var matches []byte
 var matchesMap = map[int][]byte{
 	0: nil,
 }
+var matchesSlice = [][]byte{
+	[]byte(""),
+}
+var captureIndex = 1
+var cap = 0
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 func main() {
@@ -34,6 +39,7 @@ func main() {
 
 	if !ok {
 		fmt.Println("match not found")
+		fmt.Println(cap)
 		os.Exit(1)
 	}
 	fmt.Println("match found:", len(matches), "match(es)")
@@ -41,6 +47,10 @@ func main() {
 	for k, v := range matchesMap {
 		fmt.Println("key:", k, "value:", string(v))
 	}
+	for i, v := range matchesSlice {
+		fmt.Println("matches slice:", i, string(v))
+	}
+	fmt.Println(cap)
 }
 
 func matchLine(line []byte, pattern string) bool {
@@ -99,6 +109,9 @@ func matchLine(line []byte, pattern string) bool {
 				for k, v := range matchesMap {
 					fmt.Println("key:", k, "value:", string(v))
 				}
+				for i, v := range matchesSlice {
+					fmt.Println("matches slice:", i, string(v))
+				}
 			}
 			line = line[1:]
 		}
@@ -116,49 +129,54 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 	}
 
 	if len(pattern) > 1 && pattern[0] == '(' {
-		pat := pattern[1:strings.Index(pattern, ")")]
+		defer func() {
+			cap--
+		}()
+		cap++
+		fmt.Println("cap", cap)
+		matchesSlice = append(matchesSlice, nil)
+		endIdx := findClosingParen(pattern)
+		pat := pattern[1:endIdx] // Get the pattern inside the parentheses
 		fmt.Println(pat)
 		if strings.Contains(pat, "|") {
 			alternatives := strings.Split(pat, "|")
 			for _, alt := range alternatives {
 				fmt.Println(alt)
-				if subMatched, subPatternConsumed, subLineConsumed := matchHere(line, alt); subMatched {
-					maxKey := 0
-					for k := range matchesMap {
-						if k > maxKey {
-							maxKey = k
-						}
-					}
-					fmt.Println("appending to matchesMap", subLineConsumed)
-					newKey := maxKey + 1
-					matchesMap[newKey] = line[:subLineConsumed]
-					remainingPattern := pattern[strings.Index(pattern, ")")+1:]
-					subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subPatternConsumed:], remainingPattern) // match pattern after ()
-					patternConsumedTotal := len(pattern) - len(remainingPattern)                                                             // add len of | and ()
-
-					fmt.Println("pat cons:", subPatternConsumedAfter+patternConsumedTotal)
-					return subMatchedAfter, subPatternConsumedAfter + patternConsumedTotal, subLineConsumedAfter + subLineConsumed
+				if subMatched, _, subLineConsumed := matchHere(line, alt); subMatched {
+					// maxKey := 0
+					// for k := range matchesMap {
+					// 	if k > maxKey {
+					// 		maxKey = k
+					// 	}
+					// }
+					// fmt.Println("appending to matchesMap", subLineConsumed)
+					// newKey := maxKey + 1
+					// matchesMap[newKey] = line[:subLineConsumed]
+					// remainingPattern := pattern[strings.Index(pattern, ")")+1:]
+					// subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subPatternConsumed:], remainingPattern) // match pattern after ()
+					remainingPattern := pattern[endIdx+1:]
+					matchesSlice[cap] = line[:subLineConsumed]
+					matchesMap[captureIndex] = line[:subLineConsumed]
+					fmt.Println("appending to matchesMap", string(matchesMap[captureIndex]), "on index", captureIndex)
+					captureIndex++
+					subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subLineConsumed:], remainingPattern)
+					return subMatchedAfter, subPatternConsumedAfter + endIdx + strings.Count(pat, "|"), subLineConsumedAfter + subLineConsumed
 				}
 			}
 			return false, 0, 0
 		}
-		if subMatched, subPatternConsumed, subLineConsumed := matchHere(line, pat); subMatched {
-			remainingPattern := pattern[strings.Index(pattern, ")")+1:]
-			maxKey := 0
-			for k := range matchesMap {
-				if k > maxKey {
-					maxKey = k
-				}
-			}
-			fmt.Println("appending to matchesMap", subLineConsumed)
-			newKey := maxKey + 1
-			matchesMap[newKey] = line[:subLineConsumed]
-			fmt.Println(string(matchesMap[newKey]))
-			subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subLineConsumed:], remainingPattern)
-
-			fmt.Println("pat cons in ():", 2+subPatternConsumed)
-			return subMatchedAfter, subPatternConsumedAfter + 2 + subPatternConsumed, subLineConsumedAfter + subLineConsumed
+		subMatched, _, subLineConsumed := matchHere(line, pat)
+		if !subMatched {
+			return false, 0, 0
 		}
+		remainingPattern := pattern[endIdx+1:]
+		matchesSlice[cap] = line[:subLineConsumed]
+		matchesMap[captureIndex] = line[:subLineConsumed]
+		fmt.Println("appending to matchesSlice", string(matchesSlice[cap]), "on index", cap)
+		fmt.Println("appending to matchesMap", string(matchesMap[captureIndex]), "on index", captureIndex)
+		captureIndex++
+		subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subLineConsumed:], remainingPattern)
+		return subMatchedAfter, subPatternConsumedAfter + 1 + endIdx, subLineConsumedAfter + subLineConsumed
 	}
 
 	if len(pattern) > 2 && pattern[0] == '[' {
@@ -177,7 +195,6 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 				return false, 0, 0
 			}
 			subMatched, subPatternConsumed, subLineConsumed := matchHere(line[i:], pattern[end+2:])
-			fmt.Println("pat cons:", subPatternConsumed+end+2)
 			return subMatched, subPatternConsumed + end + 2, subLineConsumed + i
 		}
 		if pattern[1] == '^' {
@@ -201,21 +218,25 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 		seq := pattern[1]
 		if len(pattern) > 2 && isQuantifier(pattern[2]) {
 			i := quantifier(line, pattern, rune(pattern[2]))
-			fmt.Println(i, "perulangan")
 			subMatched, subPatternConsumed, subLineConsumed := matchHere(line[i:], pattern[3:])
-			fmt.Println("pat cons in \\.q and lin cons", 3+subPatternConsumed, subLineConsumed+i)
 			return subMatched, subPatternConsumed + 3, subLineConsumed + i
 		}
 		if special(line, seq) {
 
 			subMatched, subPatternConsumed, subLineConsumed := matchHere(line[1:], pattern[2:])
-			fmt.Println("pat cons:", 2+subPatternConsumed)
 			return subMatched, subPatternConsumed + 2, subLineConsumed + 1
 		}
 		if unicode.IsDigit(rune(seq)) {
 			i, _ := strconv.Atoi(string(seq))
-			ref := matchesMap[i]
-
+			if i >= len(matchesSlice) {
+				return false, 0, 0
+			}
+			ref := matchesSlice[i]
+			// TODO: add implementation where we can use capture group wanted
+			if ref == nil {
+				fmt.Println("index", i, "does not contain anything")
+				return false, 0, 0
+			}
 			// if bytes.HasPrefix(line, ref) {
 			// 	matches = append(matches, ref...)
 			// 	subMatched, subPatternConsumed, lineConsumed := matchHere(line[len(ref):], pattern[2:])
@@ -224,11 +245,10 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 			// }
 			fmt.Println("it's digit number", i)
 			fmt.Println("matching with", string(ref))
-			if subMatched, subPatternConsumed, subLineConsumed := matchHere(line, fmt.Sprintf("(%s)", ref)); subMatched {
+			if subMatched, subPatternConsumed, subLineConsumed := matchHere(line, string(ref)); subMatched {
 				remainingPattern := pattern[2:]
 				subPatternConsumed -= 2
 				subMatchedAfter, subPatternConsumedAfter, subLineConsumedAfter := matchHere(line[subLineConsumed:], remainingPattern)
-				fmt.Println("pat cons:", 2+subPatternConsumedAfter)
 				return subMatchedAfter, 2 + subPatternConsumedAfter, subLineConsumedAfter + subLineConsumed // consume '\' and digit + everything afterwards
 			}
 		}
@@ -236,7 +256,6 @@ func matchHere(line []byte, pattern string) (bool, int, int) {
 	}
 
 	if len(line) > 0 && len(pattern) > 1 && isQuantifier(pattern[1]) { // handle quantifiers
-		fmt.Println("heeyy")
 		i := quantifier(line, pattern, rune(pattern[1]))
 		if pattern[1] == '+' && i == 0 {
 			return false, 0, 0
@@ -370,4 +389,19 @@ func special(line []byte, seq byte) bool {
 	}
 
 	return false
+}
+
+func findClosingParen(pattern string) int {
+	openCount := 0
+	for i, char := range pattern {
+		if char == '(' {
+			openCount++
+		} else if char == ')' {
+			openCount--
+		}
+		if openCount == 0 {
+			return i
+		}
+	}
+	return -1 // Invalid pattern (unmatched parentheses)
 }
